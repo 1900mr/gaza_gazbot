@@ -15,7 +15,7 @@
     "glob": "^9.0.0",
     "rimraf": "^4.0.0",
     "request-promise-core": "^1.1.4",
-    "unzipper": "^0.10.11"و
+    "unzipper": "^0.10.11",
     
     
   },
