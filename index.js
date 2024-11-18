@@ -27,10 +27,8 @@ async function loadDataFromExcel() {
         const worksheet = workbook.worksheets[0]; // أول ورقة عمل
 
         worksheet.eachRow((row, rowNumber) => {
-            // قراءة القيم من الصفوف
             const idNumber = row.getCell(1).value?.toString().trim(); // رقم الهوية
             const name = row.getCell(2).value?.toString().trim(); // اسم المواطن
-            
             const province = row.getCell(3).value?.toString().trim(); // المحافظة
             const district = row.getCell(4).value?.toString().trim(); // المدينة
             const area = row.getCell(5).value?.toString().trim(); // الحي/المنطقة
@@ -39,12 +37,11 @@ async function loadDataFromExcel() {
             const distributorPhone = row.getCell(8).value?.toString().trim(); // رقم جوال الموزع
             const status = row.getCell(9).value?.toString().trim(); // الحالة
             const orderDate = row.getCell(12).value?.toString().trim(); // تاريخ الطلب
-            const phoneNumber = row.getCell(3).value?.toString().trim(); // رقم الجوال
+
             if (idNumber && name) {
                 data.push({
-                    idNumber: idNumber,
-                    name: name,
-                    phoneNumber: phoneNumber || "غير متوفر",
+                    idNumber,
+                    name,
                     province: province || "غير متوفر",
                     district: district || "غير متوفر",
                     area: area || "غير متوفر",
@@ -68,16 +65,48 @@ loadDataFromExcel();
 
 // الرد على أوامر البوت
 bot.onText(/\/start/, (msg) => {
-    bot.sendMessage(msg.chat.id, "مرحبًا! أدخل رقم الهوية أو الاسم للحصول على التفاصيل.");
+    const options = {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: "🔍 البحث بالرقم أو الاسم", callback_data: 'search' }],
+                [{ text: "📋 قائمة الأوامر", callback_data: 'help' }],
+            ],
+        },
+    };
+    bot.sendMessage(msg.chat.id, "مرحبًا بك! اختر أحد الخيارات التالية:", options);
+});
+
+bot.on('callback_query', (query) => {
+    const chatId = query.message.chat.id;
+
+    if (query.data === 'search') {
+        bot.sendMessage(chatId, "📝 أدخل رقم الهوية أو الاسم للبحث:");
+    } else if (query.data === 'help') {
+        const helpMessage = `
+🤖 **قائمة الأوامر:**
+/start - بدء المحادثة
+/help - عرض قائمة الأوامر
+/list - عرض جميع البيانات بناءً على منطقة أو محافظة
+/search - البحث باستخدام رقم الهوية أو الاسم
+        `;
+        bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+    }
+});
+
+bot.onText(/\/search/, (msg) => {
+    bot.sendMessage(msg.chat.id, "📝 أدخل رقم الهوية أو الاسم للبحث:");
+});
+
+bot.onText(/\/list/, (msg) => {
+    bot.sendMessage(msg.chat.id, "📍 أدخل اسم المحافظة أو الحي لعرض الطلبات:");
 });
 
 bot.on('message', (msg) => {
     const chatId = msg.chat.id;
-    const input = msg.text.trim(); // رقم الهوية أو الاسم
+    const input = msg.text.trim(); // مدخل المستخدم
 
-    if (input === '/start') return;
+    if (input === '/start' || input.startsWith('/')) return; // تجاهل الأوامر الأخرى
 
-    // البحث عن المستخدم باستخدام رقم الهوية أو الاسم
     const user = data.find((entry) => entry.idNumber === input || entry.name === input);
 
     if (user) {
@@ -98,7 +127,7 @@ bot.on('message', (msg) => {
         `;
         bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
     } else {
-        bot.sendMessage(chatId, "⚠️ عذرًا، لم أتمكن من العثور على بيانات للمدخل المقدم.");
+        bot.sendMessage(chatId, "⚠️ لم أتمكن من العثور على بيانات للمدخل المقدم.");
     }
 });
 
