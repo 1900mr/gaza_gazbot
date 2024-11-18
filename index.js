@@ -6,6 +6,10 @@ const express = require('express'); // إضافة Express لتشغيل السي�
 // إعداد سيرفر Express (لتشغيل التطبيق على Render أو في بيئة محلية)
 const app = express();
 const port = process.env.PORT || 4000; // المنفذ الافتراضي
+// إضافة استجابة لمسار الجذر (/) حتى يمكن مراقبته من UptimeRobot
+app.get('/', (req, res) => {
+    res.send('The server is running successfully.');
+});
 
 // استبدل بالتوكن الخاص بك
 const token = process.env.TELEGRAM_BOT_TOKEN || '7203035834:AAEaT5eaKIKYnbD7jtlEijifCr7z7t1ZBL0';
