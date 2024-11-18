@@ -27,16 +27,17 @@ async function loadDataFromExcel() {
             // قراءة القيم من الصفوف
             const idNumber = row.getCell(1).value?.toString().trim(); // رقم الهوية
             const name = row.getCell(2).value?.toString().trim(); // اسم الطالب
-            const phoneNumber = row.getCell(3).value?.toString().trim(); // رقم الجوال
-            const province = row.getCell(4).value?.toString().trim(); // المحافظة
-            const city = row.getCell(5).value?.toString().trim(); // المدينة
-            const area = row.getCell(6).value?.toString().trim(); // الحي/المنطقة
-            const distributorId = row.getCell(7).value?.toString().trim(); // هوية الموزع
-            const distributorName = row.getCell(8).value?.toString().trim(); // اسم الموزع
-            const distributorPhone = row.getCell(9).value?.toString().trim(); // رقم الموزع
-            const status = row.getCell(10).value?.toString().trim(); // الحالة
+            
+            const province = row.getCell(3).value?.toString().trim(); // المحافظة
+            const city = row.getCell(4).value?.toString().trim(); // المدينة
+            const area = row.getCell(5).value?.toString().trim(); // الحي/المنطقة
+            const distributorId = row.getCell(6).value?.toString().trim(); // هوية الموزع
+            const distributorName = row.getCell(7).value?.toString().trim(); // اسم الموزع
+            const distributorPhone = row.getCell(8).value?.toString().trim(); // رقم الموزع
+            const status = row.getCell(9).value?.toString().trim(); // الحالة
             const orderDate = row.getCell(11).value?.toString().trim(); // تاريخ الطلب
             const district = row.getCell(12).value?.toString().trim();
+            const phoneNumber = row.getCell(13).value?.toString().trim(); // رقم الجوال
 
             if (idNumber && name) {
                 data[idNumber] = {
