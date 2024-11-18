@@ -8,7 +8,7 @@ const app = express();
 const port = process.env.PORT || 4000; // المنفذ الافتراضي
 
 // استبدل بالتوكن الخاص بك
-const token = process.env.TELEGRAM_BOT_TOKEN || '7201507244:AAFmUzJTZ0CuhWxTE_BjwQJ-XB3RXlYMKYU';
+const token = process.env.TELEGRAM_BOT_TOKEN || '7203035834:AAEaT5eaKIKYnbD7jtlEijifCr7z7t1ZBL0';
 
 // إنشاء البوت
 const bot = new TelegramBot(token, { polling: true });
