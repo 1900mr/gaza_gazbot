@@ -6,41 +6,15 @@ const express = require('express'); // إضافة Express لتشغيل السي�
 // إعداد سيرفر Express (لتشغيل التطبيق على Render أو في بيئة محلية)
 const app = express();
 const port = process.env.PORT || 10000; // المنفذ الافتراضي
-app.use(express.json()); // تأكيد أن السيرفر يستقبل البيانات في صيغة JSON
 app.get('/', (req, res) => {
     res.send('The server is running successfully.');
 });
 
-// التحقق من وجود متغير البيئة TELEGRAM_BOT_TOKEN
-const token = process.env.TELEGRAM_BOT_TOKEN;
-if (!token) {
-    console.error('TELEGRAM_BOT_TOKEN is missing!');
-    process.exit(1); // إيقاف البرنامج إذا كان التوكن مفقودًا
-}
+// استبدل بالتوكن الخاص بك
+const token = process.env.TELEGRAM_BOT_TOKEN || '7203035834:AAEaT5eaKIKYnbD7jtlEijifCr7z7t1ZBL0';
 
 // إنشاء البوت
-const bot = new TelegramBot(token, { polling: false }); // تأكد من أن البوت لا يستخدم polling
-
-// إعداد Webhook
-const webhookUrl = `https://your-server-url.com/${process.env.WEBHOOK_PATH}`;  // ضع الرابط الصحيح للسيرفر الخاص بك
-
-// إلغاء Webhook القديم فقط إذا كان موجودًا
-bot.getWebHookInfo().then((info) => {
-    if (info.url !== webhookUrl) {
-        bot.deleteWebHook().then(() => {
-            console.log('تم إلغاء Webhook القديم بنجاح.');
-            bot.setWebHook(webhookUrl).then(() => {
-                console.log('تم تعيين Webhook بنجاح.');
-            }).catch(error => {
-                console.error('خطأ في تعيين Webhook:', error);
-            });
-        }).catch(error => {
-            console.error('خطأ في إلغاء Webhook:', error);
-        });
-    } else {
-        console.log('تم تعيين Webhook بالفعل.');
-    }
-});
+const bot = new TelegramBot(token, { polling: true });
 
 // تخزين البيانات من Excel
 let data = [];
@@ -52,7 +26,7 @@ async function loadDataFromExcel() {
         await workbook.xlsx.readFile('gas18-11-2024.xlsx'); // اسم الملف
         const worksheet = workbook.worksheets[0]; // أول ورقة عمل
 
-        worksheet.eachRow((row) => {
+        worksheet.eachRow((row, rowNumber) => {
             const idNumber = row.getCell(1).value?.toString().trim(); // رقم الهوية
             const name = row.getCell(2).value?.toString().trim(); // اسم المواطن
             const province = row.getCell(3).value?.toString().trim(); // المحافظة
@@ -83,7 +57,6 @@ async function loadDataFromExcel() {
         console.log('تم تحميل البيانات بنجاح.');
     } catch (error) {
         console.error('حدث خطأ أثناء قراءة ملف Excel:', error.message);
-        bot.sendMessage(process.env.ADMIN_CHAT_ID, 'حدث خطأ في تحميل البيانات من ملف Excel!');
     }
 }
 
@@ -105,10 +78,118 @@ bot.onText(/\/start/, (msg) => {
     bot.sendMessage(msg.chat.id, "مرحبًا بك! اختر أحد الخيارات التالية:", options);
 });
 
-// التعامل مع التحديثات الواردة عبر Webhook
-app.post(`/${process.env.WEBHOOK_PATH}`, (req, res) => {
-    bot.processUpdate(req.body); // معالجة التحديثات التي يتم إرسالها من تليجرام
-    res.sendStatus(200); // إرسال حالة 200 كإجابة
+bot.on('callback_query', (query) => {
+    const chatId = query.message.chat.id;
+
+    if (query.data === 'search') {
+        bot.sendMessage(chatId, "📝 أدخل رقم الهوية أو الاسم للبحث:");
+    } else if (query.data === 'help') {
+        const helpMessage = `
+🤖 **قائمة الأوامر:**
+/start - بدء المحادثة
+/search - البحث باستخدام رقم الهوية أو الاسم
+/help - عرض قائمة الأوامر
+/contact - معلومات الاتصال للمزيد من الدعم
+/about - معلومات عن البوت
+     
+        `;
+        bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+    } else if (query.data === 'about') {
+        const aboutMessage = `
+🤖 **معلومات عن البوت:**
+هذا البوت يتيح لك البحث عن المواطنين باستخدام رقم الهوية أو الاسم
+
+- يمكنك البحث باستخدام رقم الهوية أو الاسم.
+- يتم عرض تفاصيل المواطن بما في ذلك بيانات الموزع وحالة الطلب.
+
+هدفنا هو تسهيل الوصول إلى البيانات من خلال هذه الخدمة.
+هذه الخدمة ليست حكومية وانما خدمة من جهد شخصي
+
+🔧 **التطوير والصيانة**: تم تطوير هذا البوت بواسطة [احمد محمد ابو غرقود].
+        `;
+        bot.sendMessage(chatId, aboutMessage, { parse_mode: 'Markdown' });
+    } else if (query.data === 'contact') {
+        const contactMessage = `
+📞 **معلومات الاتصال:**
+للمزيد من الدعم أو الاستفسار، يمكنك التواصل معنا عبر:
+
+- 📧 البريد الإلكتروني: [mrahel1991@gmail.com]
+- 📱 جوال : [0598550144]
+- 💬 تلغرام : [https://t.me/AhmedGarqoud]
+
+نحن هنا للمساعدة!
+        `;
+        bot.sendMessage(chatId, contactMessage, { parse_mode: 'Markdown' });
+    }
+});
+
+// إضافة الكود للتعامل مع /about مباشرة
+bot.onText(/\/about/, (msg) => {
+    const aboutMessage = `
+🤖 **معلومات عن البوت:**
+هذا البوت يتيح لك البحث عن المواطنين باستخدام رقم الهوية أو الاسم.
+
+- يمكنك البحث باستخدام رقم الهوية أو الاسم.
+- يتم عرض تفاصيل المواطن بما في ذلك بيانات الموزع وحالة الطلب.
+
+هدفنا هو تسهيل الوصول إلى البيانات من خلال هذه الخدمة.
+هذه الخدمة ليست حكومية وإنما خدمة من جهد شخصي.
+
+🔧 **التطوير والصيانة**: تم تطوير هذا البوت بواسطة [احمد محمد ابو غرقود].
+    `;
+    bot.sendMessage(msg.chat.id, aboutMessage, { parse_mode: 'Markdown' });
+});
+
+// إضافة الكود للتعامل مع /contact مباشرة
+bot.onText(/\/contact/, (msg) => {
+    const contactMessage = `
+📞 **معلومات الاتصال:**
+للمزيد من الدعم أو الاستفسار، يمكنك التواصل معنا عبر:
+
+- 📧 البريد الإلكتروني: [mrahel1991@gmail.com]
+- 📱 جوال : [0598550144]
+- 📱 تليجرام: [@ahmed_abou_ghrqa]
+    `;
+    bot.sendMessage(msg.chat.id, contactMessage, { parse_mode: 'Markdown' });
+});
+
+
+bot.onText(/\/search/, (msg) => {
+    bot.sendMessage(msg.chat.id, "📝 أدخل رقم الهوية أو الاسم للبحث:");
+});
+
+bot.onText(/\/list/, (msg) => {
+    bot.sendMessage(msg.chat.id, "📍 أدخل اسم المحافظة أو الحي لعرض الطلبات:");
+});
+
+bot.on('message', (msg) => {
+    const chatId = msg.chat.id;
+    const input = msg.text.trim(); // مدخل المستخدم
+
+    if (input === '/start' || input.startsWith('/')) return; // تجاهل الأوامر الأخرى
+
+    const user = data.find((entry) => entry.idNumber === input || entry.name === input);
+
+    if (user) {
+        const response = `
+🔍 **تفاصيل الطلب:**
+
+👤 **الاسم**: ${user.name}
+📍 **المحافظة**: ${user.province}
+🏙️ **المدينة**: ${user.district}
+🏘️ **الحي / المنطقة**: ${user.area}
+
+🆔 **هوية الموزع**: ${user.distributorId}  
+📛 **اسم الموزع**: ${user.distributorName}
+📞 **رقم جوال الموزع**: ${user.distributorPhone}
+
+📜 **الحالة**: ${user.status}
+📅 **تاريخ الطلب**: ${user.orderDate}
+        `;
+        bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+    } else {
+        bot.sendMessage(chatId, "⚠️ لم أتمكن من العثور على بيانات للمدخل المقدم.");
+    }
 });
 
 // تشغيل السيرفر
