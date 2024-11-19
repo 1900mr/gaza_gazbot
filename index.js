@@ -6,12 +6,17 @@ const express = require('express'); // إضافة Express لتشغيل السي�
 // إعداد سيرفر Express (لتشغيل التطبيق على Render أو في بيئة محلية)
 const app = express();
 const port = process.env.PORT || 10000; // المنفذ الافتراضي
+app.use(express.json()); // تأكيد أن السيرفر يستقبل البيانات في صيغة JSON
 app.get('/', (req, res) => {
     res.send('The server is running successfully.');
 });
 
-// استبدل بالتوكن الخاص بك
-const token = process.env.TELEGRAM_BOT_TOKEN || '7203035834:AAEaT5eaKIKYnbD7jtlEijifCr7z7t1ZBL0';
+// التحقق من وجود متغير البيئة TELEGRAM_BOT_TOKEN
+const token = process.env.TELEGRAM_BOT_TOKEN;
+if (!token) {
+    console.error('TELEGRAM_BOT_TOKEN is missing!');
+    process.exit(1); // إيقاف البرنامج إذا كان التوكن مفقودًا
+}
 
 // إنشاء البوت
 const bot = new TelegramBot(token, { polling: false }); // تأكد من أن البوت لا يستخدم polling
@@ -19,18 +24,22 @@ const bot = new TelegramBot(token, { polling: false }); // تأكد من أن ا
 // إعداد Webhook
 const webhookUrl = `https://your-server-url.com/${process.env.WEBHOOK_PATH}`;  // ضع الرابط الصحيح للسيرفر الخاص بك
 
-// إلغاء Webhook القديم أولاً إذا كان موجودًا
-bot.deleteWebHook().then(() => {
-    console.log('تم إلغاء Webhook القديم بنجاح.');
-}).catch(error => {
-    console.error('خطأ في إلغاء Webhook:', error);
-});
-
-// تعيين Webhook جديد
-bot.setWebHook(webhookUrl).then(() => {
-    console.log('تم تعيين Webhook بنجاح.');
-}).catch(error => {
-    console.error('خطأ في تعيين Webhook:', error);
+// إلغاء Webhook القديم فقط إذا كان موجودًا
+bot.getWebHookInfo().then((info) => {
+    if (info.url !== webhookUrl) {
+        bot.deleteWebHook().then(() => {
+            console.log('تم إلغاء Webhook القديم بنجاح.');
+            bot.setWebHook(webhookUrl).then(() => {
+                console.log('تم تعيين Webhook بنجاح.');
+            }).catch(error => {
+                console.error('خطأ في تعيين Webhook:', error);
+            });
+        }).catch(error => {
+            console.error('خطأ في إلغاء Webhook:', error);
+        });
+    } else {
+        console.log('تم تعيين Webhook بالفعل.');
+    }
 });
 
 // تخزين البيانات من Excel
@@ -43,7 +52,7 @@ async function loadDataFromExcel() {
         await workbook.xlsx.readFile('gas18-11-2024.xlsx'); // اسم الملف
         const worksheet = workbook.worksheets[0]; // أول ورقة عمل
 
-        worksheet.eachRow((row, rowNumber) => {
+        worksheet.eachRow((row) => {
             const idNumber = row.getCell(1).value?.toString().trim(); // رقم الهوية
             const name = row.getCell(2).value?.toString().trim(); // اسم المواطن
             const province = row.getCell(3).value?.toString().trim(); // المحافظة
@@ -74,6 +83,7 @@ async function loadDataFromExcel() {
         console.log('تم تحميل البيانات بنجاح.');
     } catch (error) {
         console.error('حدث خطأ أثناء قراءة ملف Excel:', error.message);
+        bot.sendMessage(process.env.ADMIN_CHAT_ID, 'حدث خطأ في تحميل البيانات من ملف Excel!');
     }
 }
 
