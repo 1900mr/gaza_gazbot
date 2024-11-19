@@ -5,7 +5,7 @@ const express = require('express'); // إضافة Express لتشغيل السي�
 
 // إعداد سيرفر Express (لتشغيل التطبيق على Render أو في بيئة محلية)
 const app = express();
-const port = process.env.PORT || 4000; // المنفذ الافتراضي
+const port = process.env.PORT || 10000; // المنفذ الافتراضي
 app.get('/', (req, res) => {
     res.send('The server is running successfully.');
 });
