@@ -14,11 +14,24 @@ app.get('/', (req, res) => {
 const token = process.env.TELEGRAM_BOT_TOKEN || '7203035834:AAEaT5eaKIKYnbD7jtlEijifCr7z7t1ZBL0';
 
 // إنشاء البوت
-const bot = new TelegramBot(token);
+const bot = new TelegramBot(token, { polling: false }); // تأكد من أن البوت لا يستخدم polling
 
 // إعداد Webhook
 const webhookUrl = `https://your-server-url.com/${process.env.WEBHOOK_PATH}`;  // ضع الرابط الصحيح للسيرفر الخاص بك
-bot.setWebHook(webhookUrl); // تعيين Webhook
+
+// إلغاء Webhook القديم أولاً إذا كان موجودًا
+bot.deleteWebHook().then(() => {
+    console.log('تم إلغاء Webhook القديم بنجاح.');
+}).catch(error => {
+    console.error('خطأ في إلغاء Webhook:', error);
+});
+
+// تعيين Webhook جديد
+bot.setWebHook(webhookUrl).then(() => {
+    console.log('تم تعيين Webhook بنجاح.');
+}).catch(error => {
+    console.error('خطأ في تعيين Webhook:', error);
+});
 
 // تخزين البيانات من Excel
 let data = [];
