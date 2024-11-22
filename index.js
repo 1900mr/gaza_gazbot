@@ -11,7 +11,7 @@ app.get('/', (req, res) => {
 });
 
 // استبدل بالتوكن الخاص بك
-const token = process.env.TELEGRAM_BOT_TOKEN || '7203035834:AAEaT5eaKIKYnbD7jtlEijifCr7z7t1ZBL0';
+const token = process.env.TELEGRAM_BOT_TOKEN || '7857872067:AAEDH3UChHfGDul0f0TdsPOoECbHv2HCDyQ';
 
 // إنشاء البوت
 const bot = new TelegramBot(token, { polling: true });
@@ -22,52 +22,60 @@ let data = [];
 // حفظ معرفات المستخدمين الذين يتفاعلون مع البوت
 let userIds = new Set(); // Set للحفاظ على المعرفات الفريدة للمستخدمين
 
-// دالة لتحميل البيانات من Excel
-async function loadDataFromExcel() {
+// دالة لتحميل البيانات من عدة ملفات Excel
+async function loadDataFromExcelFiles(filePaths) {
+    data = []; // إعادة تعيين المصفوفة لتجنب التكرار
     try {
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.readFile('gas18-11-2024.xlsx'); // اسم الملف
-        const worksheet = workbook.worksheets[0]; // أول ورقة عمل
+        for (const filePath of filePaths) {
+            const workbook = new ExcelJS.Workbook();
+            await workbook.xlsx.readFile(filePath); // قراءة الملف الحالي
+            const worksheet = workbook.worksheets[0]; // أول ورقة عمل
 
-        worksheet.eachRow((row, rowNumber) => {
-            const idNumber = row.getCell(1).value?.toString().trim(); // رقم الهوية
-            const name = row.getCell(2).value?.toString().trim(); // اسم المواطن
-            const province = row.getCell(3).value?.toString().trim(); // المحافظة
-            const district = row.getCell(4).value?.toString().trim(); // المدينة
-            const area = row.getCell(5).value?.toString().trim(); // الحي/المنطقة
-            const distributorId = row.getCell(6).value?.toString().trim(); // هوية الموزع
-            const distributorName = row.getCell(7).value?.toString().trim(); // اسم الموزع
-            const distributorPhone = row.getCell(8).value?.toString().trim(); // رقم جوال الموزع
-            const status = row.getCell(9).value?.toString().trim(); // الحالة
-            const orderDate = row.getCell(12).value?.toString().trim(); // تاريخ الطلب
+            // الحصول على تاريخ آخر تعديل للملف
+            const fileStats = require('fs').statSync(filePath); // قراءة بيانات الملف للحصول على تاريخ آخر تعديل
+            const lastModifiedDate = fileStats.mtime.toISOString().split('T')[0]; // استخراج تاريخ آخر تعديل (YYYY-MM-DD)
 
-            if (idNumber && name) {
-                data.push({
-                    idNumber,
-                    name,
-                    province: province || "غير متوفر",
-                    district: district || "غير متوفر",
-                    area: area || "غير متوفر",
-                    distributorId: distributorId || "غير متوفر",
-                    distributorName: distributorName || "غير متوفر",
-                    distributorPhone: distributorPhone || "غير متوفر",
-                    status: status || "غير متوفر",
-                    orderDate: orderDate || "غير متوفر",
-                });
-            }
-        });
+            worksheet.eachRow((row, rowNumber) => {
+                const idNumber = row.getCell(1).value?.toString().trim(); // رقم الهوية
+                const name = row.getCell(2).value?.toString().trim(); // اسم المواطن
+                const province = row.getCell(3).value?.toString().trim(); // المحافظة
+                const district = row.getCell(4).value?.toString().trim(); // المدينة
+                const area = row.getCell(5).value?.toString().trim(); // الحي/المنطقة
+                const distributorId = row.getCell(6).value?.toString().trim(); // هوية الموزع
+                const distributorName = row.getCell(7).value?.toString().trim(); // اسم الموزع
+                const distributorPhone = row.getCell(8).value?.toString().trim(); // رقم جوال الموزع
+                const status = row.getCell(9).value?.toString().trim(); // الحالة
 
-        console.log('تم تحميل البيانات بنجاح.');
+                // إضافة البيانات مع تاريخ آخر تعديل كـ "تاريخ تسليم الجرة"
+                if (idNumber && name) {
+                    data.push({
+                        idNumber,
+                        name,
+                        province: province || "غير متوفر",
+                        district: district || "غير متوفر",
+                        area: area || "غير متوفر",
+                        distributorId: distributorId || "غير متوفر",
+                        distributorName: distributorName || "غير متوفر",
+                        distributorPhone: distributorPhone || "غير متوفر",
+                        status: status || "غير متوفر",
+                        deliveryDate: lastModifiedDate, // تاريخ تسليم الجرة بناءً على تاريخ تعديل الملف
+                    });
+                }
+            });
+        }
 
-        // إرسال تنبيه للمستخدمين بأن البيانات تم تحديثها
-        sendMessageToAdmins("📢 تم تحديث البيانات بنجاح! يمكنك الآن البحث في البيانات المحدثة.");
+        console.log('📁 تم تحميل البيانات من جميع الملفات بنجاح.');
+
+        // إرسال تنبيه للمسؤولين
+        sendMessageToAdmins("📢 تم تحديث البيانات من جميع الملفات بنجاح! يمكنك الآن البحث في البيانات المحدثة.");
     } catch (error) {
-        console.error('حدث خطأ أثناء قراءة ملف Excel:', error.message);
+        console.error('❌ حدث خطأ أثناء قراءة ملفات Excel:', error.message);
     }
 }
 
-// تحميل البيانات عند بدء التشغيل
-loadDataFromExcel();
+// استدعاء الدالة مع ملفات متعددة
+const excelFiles = ['bur.xlsx', 'kan.xlsx', 'rfh.xlsx']; // استبدل بأسماء ملفاتك
+loadDataFromExcelFiles(excelFiles);
 
 // قائمة معرفات المسؤولين
 const adminIds = process.env.ADMIN_IDS?.split(',') || ['7719756994']; // إضافة المعرفات الفعلية للمسؤولين
@@ -75,8 +83,7 @@ const adminIds = process.env.ADMIN_IDS?.split(',') || ['7719756994']; // إضا�
 // الرد على أوامر البوت
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    // حفظ المعرفات للمستخدمين الجدد الذين يبدأون التفاعل
-    userIds.add(chatId);
+    userIds.add(chatId); // حفظ معرف المستخدم
 
     const options = {
         reply_markup: {
@@ -84,12 +91,11 @@ bot.onText(/\/start/, (msg) => {
                 [{ text: "🔍 البحث برقم الهوية أو الاسم" }],
                 [{ text: "📞 معلومات الاتصال" }, { text: "📖 معلومات عن البوت" }],
             ],
-            resize_keyboard: true, // ضبط الأزرار لتتناسب مع الحجم
-            one_time_keyboard: false, // تجعل الأزرار مرئية دائمًا
+            resize_keyboard: true,
+            one_time_keyboard: false,
         },
     };
 
-    // إضافة الزر "إرسال رسالة للجميع" للمسؤولين فقط
     if (adminIds.includes(chatId.toString())) {
         options.reply_markup.keyboard.push([{ text: "📢 إرسال رسالة للجميع" }]);
     }
@@ -97,14 +103,13 @@ bot.onText(/\/start/, (msg) => {
     bot.sendMessage(chatId, "مرحبًا بك! اختر أحد الخيارات التالية:", options);
 });
 
-// التعامل مع الضغط على الأزرار
+// التعامل مع الضغط على الأزرار والبحث
 bot.on('message', (msg) => {
     const chatId = msg.chat.id;
     const input = msg.text.trim(); // مدخل المستخدم
 
     if (input === '/start' || input.startsWith('/')) return; // تجاهل الأوامر الأخرى
 
-    // التعامل مع الأزرار
     if (input === "🔍 البحث برقم الهوية أو الاسم") {
         bot.sendMessage(chatId, "📝 أدخل رقم الهوية أو الاسم للبحث:");
     } else if (input === "📞 معلومات الاتصال") {
@@ -112,24 +117,18 @@ bot.on('message', (msg) => {
 📞 **معلومات الاتصال:**
 للمزيد من الدعم أو الاستفسار، يمكنك التواصل معنا عبر:
 
-- 📧 البريد الإلكتروني:
-[mrahel1991@gmail.com]
-- 📱 جوال :
-[0598550144]
-- 💬 تلغرام :
-[https://t.me/AhmedGarqoud]
+- 📧 البريد الإلكتروني: [mrahel1991@gmail.com]
+- 📱 جوال : [0598550144]
+- 💬 تلغرام : [https://t.me/AhmedGarqoud]
         `;
         bot.sendMessage(chatId, contactMessage, { parse_mode: 'Markdown' });
     } else if (input === "📖 معلومات عن البوت") {
         const aboutMessage = `
-🤖 **معلومات عن البوت:
-هذا البوت يتيح لك البحث برقم الهوية أو الاسم
+🤖 **معلومات عن البوت:**
+هذا البوت يتيح لك البحث عن المواطنين باستخدام رقم الهوية أو الاسم.
 
-- يمكنك البحث باستخدام رقم الهوية أو الاسم.
 - يتم عرض تفاصيل المواطن بما في ذلك بيانات الموزع وحالة الطلب.
-
-هدفنا هو تسهيل الوصول إلى البيانات من خلال هذه الخدمة.
-هذه الخدمة ليست حكومية وانما خدمة من جهد شخصي
+- هدفنا هو تسهيل الوصول إلى البيانات.
 
 🔧 **التطوير والصيانة**: تم تطوير هذا البوت بواسطة [احمد محمد ابو غرقود].
         `;
@@ -157,7 +156,7 @@ bot.on('message', (msg) => {
 🆔 **هوية الموزع**: ${user.distributorId}
 
 📜 **الحالة**: ${user.status}
-📅 **تاريخ الطلب**: ${user.orderDate}
+📅 **تاريخ تسليم الجرة**: ${user.deliveryDate}
             `;
             bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
         } else {
