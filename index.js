@@ -156,7 +156,7 @@ bot.on('message', (msg) => {
 🆔 **هوية الموزع**: ${user.distributorId}
 
 📜 **الحالة**: ${user.status}
-📅 **تاريخ تسليم الجرة**: ${user.deliveryDate}
+📅 **تاريخ صدور الكشف **: ${user.deliveryDate}
             `;
             bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
         } else {
