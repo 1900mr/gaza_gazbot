@@ -1,16 +1,17 @@
 const TelegramBot = require('node-telegram-bot-api');
-const ExcelJS = require('exceljs'); // استيراد مكتبة exceljs
-require('dotenv').config(); // إذا كنت تستخدم متغيرات بيئية
-const express = require('express'); // إضافة Express لتشغيل السيرفر
+const ExcelJS = require('exceljs');
+const express = require('express');
+const mongoose = require('mongoose');
+require('dotenv').config();
 
-// إعداد سيرفر Express (لتشغيل التطبيق على Render أو في بيئة محلية)
+// إعداد السيرفر Express
 const app = express();
-const port = process.env.PORT || 4000; // المنفذ الافتراضي
+const port = process.env.PORT || 4000;
 app.get('/', (req, res) => {
     res.send('The server is running successfully.');
 });
 
-// استبدل بالتوكن الخاص بك
+// استبدال التوكن الخاص بك
 const token = process.env.TELEGRAM_BOT_TOKEN || '7201507244:AAFmUzJTZ0CuhWxTE_BjwQJ-XB3RXlYMKYU';
 
 // إنشاء البوت
@@ -18,9 +19,7 @@ const bot = new TelegramBot(token, { polling: true });
 
 // تخزين البيانات من Excel
 let data = [];
-
-// حفظ معرفات المستخدمين الذين يتفاعلون مع البوت
-let userIds = new Set(); // Set للحفاظ على المعرفات الفريدة للمستخدمين
+let userIds = new Set(); // Set للمحافظة على المعرفات الفريدة للمستخدمين
 
 // اتصال MongoDB Atlas
 const mongoURI = 'mongodb+srv://mrahel1993:7Am7dkIitbpVN9Oq@cluster0.rjekk.mongodb.net/userDB?retryWrites=true&w=majority';
@@ -42,31 +41,29 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// دالة لتحميل البيانات من عدة ملفات Excel
+// دالة لتحميل البيانات من ملفات Excel
 async function loadDataFromExcelFiles(filePaths) {
-    data = []; // إعادة تعيين المصفوفة لتجنب التكرار
+    data = [];
     try {
         for (const filePath of filePaths) {
             const workbook = new ExcelJS.Workbook();
-            await workbook.xlsx.readFile(filePath); // قراءة الملف الحالي
-            const worksheet = workbook.worksheets[0]; // أول ورقة عمل
+            await workbook.xlsx.readFile(filePath);
+            const worksheet = workbook.worksheets[0];
 
-            // الحصول على تاريخ آخر تعديل للملف
-            const fileStats = require('fs').statSync(filePath); // قراءة بيانات الملف للحصول على تاريخ آخر تعديل
-            const lastModifiedDate = fileStats.mtime.toISOString().split('T')[0]; // استخراج تاريخ آخر تعديل (YYYY-MM-DD)
+            const fileStats = require('fs').statSync(filePath);
+            const lastModifiedDate = fileStats.mtime.toISOString().split('T')[0];
 
-            worksheet.eachRow((row, rowNumber) => {
-                const idNumber = row.getCell(1).value?.toString().trim(); // رقم الهوية
-                const name = row.getCell(2).value?.toString().trim(); // اسم المواطن
-                const province = row.getCell(3).value?.toString().trim(); // المحافظة
-                const district = row.getCell(4).value?.toString().trim(); // المدينة
-                const area = row.getCell(5).value?.toString().trim(); // الحي/المنطقة
-                const distributorId = row.getCell(6).value?.toString().trim(); // هوية الموزع
-                const distributorName = row.getCell(7).value?.toString().trim(); // اسم الموزع
-                const distributorPhone = row.getCell(8).value?.toString().trim(); // رقم جوال الموزع
-                const status = row.getCell(9).value?.toString().trim(); // الحالة
+            worksheet.eachRow((row) => {
+                const idNumber = row.getCell(1).value?.toString().trim();
+                const name = row.getCell(2).value?.toString().trim();
+                const province = row.getCell(3).value?.toString().trim();
+                const district = row.getCell(4).value?.toString().trim();
+                const area = row.getCell(5).value?.toString().trim();
+                const distributorId = row.getCell(6).value?.toString().trim();
+                const distributorName = row.getCell(7).value?.toString().trim();
+                const distributorPhone = row.getCell(8).value?.toString().trim();
+                const status = row.getCell(9).value?.toString().trim();
 
-                // إضافة البيانات مع تاريخ آخر تعديل كـ "تاريخ تسليم الجرة"
                 if (idNumber && name) {
                     data.push({
                         idNumber,
@@ -78,15 +75,13 @@ async function loadDataFromExcelFiles(filePaths) {
                         distributorName: distributorName || "غير متوفر",
                         distributorPhone: distributorPhone || "غير متوفر",
                         status: status || "غير متوفر",
-                        deliveryDate: lastModifiedDate, // تاريخ تسليم الجرة بناءً على تاريخ تعديل الملف
+                        deliveryDate: lastModifiedDate,
                     });
                 }
             });
         }
 
         console.log('📁 تم تحميل البيانات من جميع الملفات بنجاح.');
-
-        // إرسال تنبيه للمسؤولين
         sendMessageToAdmins("📢 تم تحديث البيانات من جميع الملفات بنجاح! يمكنك الآن البحث في البيانات المحدثة.");
     } catch (error) {
         console.error('❌ حدث خطأ أثناء قراءة ملفات Excel:', error.message);
@@ -98,12 +93,12 @@ const excelFiles = ['b.xlsx', 'k.xlsx', 'r.xlsx']; // استبدل بأسماء 
 loadDataFromExcelFiles(excelFiles);
 
 // قائمة معرفات المسؤولين
-const adminIds = process.env.ADMIN_IDS?.split(',') || ['7719756994']; // إضافة المعرفات الفعلية للمسؤولين
+const adminIds = process.env.ADMIN_IDS?.split(',') || ['7719756994'];
 
 // الرد على أوامر البوت
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    userIds.add(chatId); // حفظ معرف المستخدم
+    userIds.add(chatId);
 
     const options = {
         reply_markup: {
@@ -124,22 +119,20 @@ bot.onText(/\/start/, (msg) => {
 });
 
 // التعامل مع الضغط على الأزرار والبحث
-bot.on('message', (msg) => {
+bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
-    const input = msg.text.trim(); // مدخل المستخدم
+    const input = msg.text.trim();
 
-    if (input === '/start' || input.startsWith('/')) return; // تجاهل الأوامر الأخرى
+    if (input === '/start' || input.startsWith('/')) return;
 
     if (input === "🔍 البحث برقم الهوية أو الاسم") {
         bot.sendMessage(chatId, "📝 أدخل رقم الهوية أو الاسم للبحث:");
     } else if (input === "📞 معلومات الاتصال") {
         const contactMessage = `
 📞 **معلومات الاتصال:**
-للمزيد من الدعم أو الاستفسار 
-في حال حدوث اي خلل 
- يمكنك التواصل معنا عبر:
-
-
+للمزيد من الدعم أو الاستفسار
+في حال حدوث اي خلل
+يمكنك التواصل معنا عبر:
 💬 تلجرام: [https://t.me/AhmedGarqoud]
         `;
         bot.sendMessage(chatId, contactMessage, { parse_mode: 'Markdown' });
@@ -147,14 +140,10 @@ bot.on('message', (msg) => {
         const aboutMessage = `
 🤖 **معلومات عن البوت:**
 هذا البوت يتيح لك البحث عن اسمك في كشوفات الغاز باستخدام رقم الهوية أو اسمك كما هو مسجل في كشوفات الغاز.
-
-- يتم عرض تفاصيل اسمك بما في ذلك بيانات الموزع وحالة طلبك .
+- يتم عرض تفاصيل اسمك بما في ذلك بيانات الموزع وحالة طلبك.
 هدفنا هو تسهيل الوصول إلى بيانتات.
-
-هذا بوت مجهود شخصي ولا يتبع لاي جهة 
-
-🔧 **التطوير والصيانة**: تم تطوير هذا البوت بواسطة 
- [احمد محمد].
+هذا بوت مجهود شخصي ولا يتبع لاي جهة.
+🔧 **التطوير والصيانة**: تم تطوير هذا البوت بواسطة [احمد محمد].
         `;
         bot.sendMessage(chatId, aboutMessage, { parse_mode: 'Markdown' });
     } else if (input === "📢 إرسال رسالة للجميع" && adminIds.includes(chatId.toString())) {
@@ -180,15 +169,15 @@ bot.on('message', (msg) => {
 🆔 **هوية الموزع**: ${user.distributorId}
 
 📜 **الحالة**: ${user.status}
-📅 **تاريخ صدور الكشف **: ("14 /12/ 2024 ")
+📅 **تاريخ صدور الكشف**: ("14 /12/ 2024")
             `;
             bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
         } else {
-            bot.sendMessage(chatId, "  14 /12/ 2024  ⚠️ لم أتمكن من العثور على بيانات للمدخل المقدم.");
+            bot.sendMessage(chatId, "⚠️ لم أتمكن من العثور على بيانات للمدخل المقدم.");
         }
     }
 
-      // حفظ بيانات المستخدم في MongoDB
+    // حفظ بيانات المستخدم في MongoDB
     const userData = {
         telegramId: msg.from.id,
         username: msg.from.username || "No Username",
