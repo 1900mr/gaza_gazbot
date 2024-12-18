@@ -22,6 +22,26 @@ let data = [];
 // حفظ معرفات المستخدمين الذين يتفاعلون مع البوت
 let userIds = new Set(); // Set للحفاظ على المعرفات الفريدة للمستخدمين
 
+// اتصال MongoDB Atlas
+const mongoURI = 'mongodb+srv://mrahel1993:7Am7dkIitbpVN9Oq@cluster0.rjekk.mongodb.net/userDB?retryWrites=true&w=majority';
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log('Connected to MongoDB Atlas'))
+.catch(err => console.error('MongoDB connection error:', err));
+
+// تعريف مخطط المستخدمين في MongoDB
+const userSchema = new mongoose.Schema({
+  telegramId: { type: Number, required: true, unique: true },
+  username: String,
+  firstName: String,
+  lastName: String,
+  joinedAt: { type: Date, default: Date.now },
+});
+
+const User = mongoose.model('User', userSchema);
+
 // دالة لتحميل البيانات من عدة ملفات Excel
 async function loadDataFromExcelFiles(filePaths) {
     data = []; // إعادة تعيين المصفوفة لتجنب التكرار
@@ -74,7 +94,7 @@ async function loadDataFromExcelFiles(filePaths) {
 }
 
 // استدعاء الدالة مع ملفات متعددة
-const excelFiles = ['bur.xlsx', 'kan.xlsx', 'rfh.xlsx']; // استبدل بأسماء ملفاتك
+const excelFiles = ['b.xlsx', 'k.xlsx', 'r.xlsx']; // استبدل بأسماء ملفاتك
 loadDataFromExcelFiles(excelFiles);
 
 // قائمة معرفات المسؤولين
@@ -119,7 +139,8 @@ bot.on('message', (msg) => {
 في حال حدوث اي خلل 
  يمكنك التواصل معنا عبر:
 
-💬 تلجرام: [https://t.me/AhmedGarqoud]
+
+💬 تلجرام: [https://t.me/AhmedGarqoud]
         `;
         bot.sendMessage(chatId, contactMessage, { parse_mode: 'Markdown' });
     } else if (input === "📖 معلومات عن البوت") {
@@ -159,12 +180,33 @@ bot.on('message', (msg) => {
 🆔 **هوية الموزع**: ${user.distributorId}
 
 📜 **الحالة**: ${user.status}
-📅 **تاريخ صدور الكشف **: ${user.deliveryDate}
+📅 **تاريخ صدور الكشف **: ("14 /12/ 2024 ")
             `;
             bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
         } else {
-            bot.sendMessage(chatId, "⚠️ لم أتمكن من العثور على بيانات للمدخل المقدم.");
+            bot.sendMessage(chatId, "  14 /12/ 2024  ⚠️ لم أتمكن من العثور على بيانات للمدخل المقدم.");
         }
+    }
+
+      // حفظ بيانات المستخدم في MongoDB
+    const userData = {
+        telegramId: msg.from.id,
+        username: msg.from.username || "No Username",
+        firstName: msg.from.first_name || "No First Name",
+        lastName: msg.from.last_name || "No Last Name",
+    };
+
+    try {
+        let user = await User.findOne({ telegramId: msg.from.id });
+        if (!user) {
+            user = new User(userData);
+            await user.save();
+            console.log(`User ${msg.from.id} saved to database.`);
+        } else {
+            console.log(`User ${msg.from.id} already exists.`);
+        }
+    } catch (err) {
+        console.error('Error saving user to database:', err);
     }
 });
 
