@@ -1,7 +1,7 @@
 {
-  "name": "telegram-bot-students",
+  "name": "telegram-bot-gaz",
   "version": "1.0.0",
-  "description": "Telegram bot to fetch student results from an Excel file.",
+  "description": "Telegram bot to fetch gaz results from an Excel file.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -14,8 +14,9 @@
     "glob": "^9.0.0",
     "rimraf": "^4.0.0",
     "request-promise-core": "^1.1.4",
+    "mongoose": "^7.0.0",
     "unzipper": "^0.10.11"
   },
-  "author": "",
+  "author": "BurijKing",
   "license": "ISC"
 }
