@@ -12,14 +12,14 @@ app.get('/', (req, res) => {
 });
 
 // استبدال التوكن الخاص بك
-const token = process.env.TELEGRAM_BOT_TOKEN || '7201507244:AAFmUzJTZ0CuhWxTE_BjwQJ-XB3RXlYMKYU!!!!!!!!!';
+const token = process.env.TELEGRAM_BOT_TOKEN || '7201507244:AAFmUzJTZ0CuhWxTE_BjwQJ-XB3RXlYMKYU';
 
 // إنشاء البوت
 const bot = new TelegramBot(token, { polling: true });
 
 // تخزين البيانات من Excel
 let data = [];
-let userIds = new Set(); // Set للمحافظة على المعرفات الفريدة للمستخدمين
+let adminState = {}; // لتتبع حالة المسؤولين أثناء إرسال الرسائل
 
 // اتصال MongoDB Atlas
 const mongoURI = 'mongodb+srv://mrahel1993:7Am7dkIitbpVN9Oq@cluster0.rjekk.mongodb.net/userDB?retryWrites=true&w=majority';
@@ -98,7 +98,6 @@ const adminIds = process.env.ADMIN_IDS?.split(',') || ['7719756994'];
 // الرد على أوامر البوت
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    userIds.add(chatId);
 
     const options = {
         reply_markup: {
@@ -147,11 +146,11 @@ bot.on('message', async (msg) => {
         `;
         bot.sendMessage(chatId, aboutMessage, { parse_mode: 'Markdown' });
     } else if (input === "📢 إرسال رسالة للجميع" && adminIds.includes(chatId.toString())) {
-        bot.sendMessage(chatId, "✉️ اكتب الرسالة التي تريد إرسالها لجميع المستخدمين:");
-        bot.once('message', (broadcastMsg) => {
-            const broadcastText = broadcastMsg.text;
-            sendBroadcastMessage(broadcastText, chatId);
-        });
+        adminState[chatId] = 'awaiting_broadcast_message';
+        bot.sendMessage(chatId, "✉️ اكتب الرسالة التي تريد إرسالها لجميع المستخدمين، ثم اضغط على إرسال:");
+    } else if (adminState[chatId] === 'awaiting_broadcast_message') {
+        delete adminState[chatId]; // إزالة الحالة بعد استلام الرسالة
+        await sendBroadcastMessage(input, chatId);
     } else {
         const user = data.find((entry) => entry.idNumber === input || entry.name === input);
 
@@ -199,12 +198,27 @@ bot.on('message', async (msg) => {
     }
 });
 
-// إرسال رسالة جماعية
+// إرسال رسالة جماعية بناءً على قاعدة بيانات المستخدمين
 async function sendBroadcastMessage(message, adminChatId) {
-    userIds.forEach(userId => {
-        bot.sendMessage(userId, message);
-    });
-    bot.sendMessage(adminChatId, "✅ تم إرسال الرسالة للجميع بنجاح.");
+    try {
+        // استعلام للحصول على جميع المستخدمين من قاعدة البيانات
+        const users = await User.find({});
+        
+        // إرسال الرسالة لكل مستخدم
+        for (const user of users) {
+            try {
+                await bot.sendMessage(user.telegramId, message);
+            } catch (err) {
+                console.error(`❌ فشل في إرسال الرسالة للمستخدم ${user.telegramId}:`, err.message);
+            }
+        }
+
+        // تأكيد الإرسال للمسؤول
+        bot.sendMessage(adminChatId, "✅ تم إرسال الرسالة لجميع المستخدمين بنجاح.");
+    } catch (err) {
+        console.error('❌ خطأ أثناء جلب المستخدمين من قاعدة البيانات:', err.message);
+        bot.sendMessage(adminChatId, "❌ حدث خطأ أثناء إرسال الرسالة للجميع.");
+    }
 }
 
 // إرسال تنبيه للمسؤولين
